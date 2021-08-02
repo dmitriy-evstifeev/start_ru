@@ -5,7 +5,7 @@ mongodata:
   volumes:
     - "/data/db"
 mongo:
-  image: mongo
+  image: mongo:4.0
   restart: always
   command: mongod --storageEngine=wiredTiger --journal --smallfiles
   environment:
