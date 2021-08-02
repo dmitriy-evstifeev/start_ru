@@ -146,7 +146,144 @@ class TestTask(unittest.TestCase):
               }
             ]
         """
-        pass
+        
+        db.products.aggregate([
+          {
+            $match: {
+              _cls: "Series"
+            }
+          },
+          {
+            $lookup: {
+              from: "products",
+              localField: "items",
+              foreignField: "_id",
+              as: "seasons"
+            }
+          },
+          {
+            $project: {
+              _id: 0,
+              path: {
+                $concat: [
+                  "/series/",
+                  "$alias"
+                ]
+              },
+              title: 1,
+              description: 1,
+              cover: "$images.cover",
+              quote: "$quote.text",
+              quote_source: "$quote.source",
+              slide: {
+                background: "$images.background",
+                foreground: "$images.foreground"
+              },
+              seasons: {
+                $map: {
+                  input: "$seasons",
+                  as: "season",
+                  in: {
+                    path: {
+                      $concat: [
+                        "/series/",
+                        "$alias",
+                        "/",
+                        "$$season.alias"
+                      ]
+                    },
+                    title: {
+                      $concat: [
+                        {
+                          "$toString": "$$season.num"
+                        },
+                        " сезон"
+                      ]
+                    },
+                    episodes: {
+                      $map: {
+                        input: "$$season.items",
+                        as: "episode",
+                        in: {
+                          path: {
+                            $concat: [
+                              "/series/",
+                              "$alias",
+                              "/",
+                              "$$season.alias",
+                              "/",
+                              "$$episode.alias"
+                            ]
+                          },
+                          title: {
+                            $concat: [
+                              "Эпизод ",
+                              {
+                                "$toString": "$$episode.num"
+                              }
+                            ]
+                          },
+                          files: {
+                            $map: {
+                              input: "$$episode.files",
+                              as: "file",
+                              in: {
+                                path: "$$file.path",
+                                label: {
+                                  $switch: {
+                                    branches: [
+                                      {
+                                        case: {
+                                          "$eq": [
+                                            "$$file.quality",
+                                            0
+                                          ]
+                                        },
+                                        then: "LD"
+                                      },
+                                      {
+                                        case: {
+                                          "$eq": [
+                                            "$$file.quality",
+                                            1
+                                          ]
+                                        },
+                                        then: "SD"
+                                      },
+                                      {
+                                        case: {
+                                          "$eq": [
+                                            "$$file.quality",
+                                            2
+                                          ]
+                                        },
+                                        then: "HD"
+                                      },
+                                      {
+                                        case: {
+                                          "$eq": [
+                                            "$$file.quality",
+                                            3
+                                          ]
+                                        },
+                                        then: "FULL_HD"
+                                      }
+                                    ]
+                                  }
+                                },
+                                quality: "$$file.quality"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+            }
+          }
+        ])
 
 if __name__ == '__main__':
     unittest.main()
